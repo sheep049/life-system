@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生活系统 Pro Mobile</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+  font-family: -apple-system, BlinkMacSystemFont;
+  background:#f5f5f7;
+  padding:15px;
+}
+
+.card {
+  background:white;
+  border-radius:12px;
+  padding:15px;
+  margin-bottom:12px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.05);
+}
+
+button {
+  padding:10px;
+  margin:5px;
+  border:none;
+  border-radius:8px;
+}
+
+.work { background:#4CAF50; color:white; }
+.fun { background:#2196F3; color:white; }
+.sleep { background:#9C27B0; color:white; }
+
+.bar {
+  display:flex;
+  height:22px;
+  margin-top:8px;
+}
+
+.cell {
+  flex:1;
+  border:1px solid #eee;
+}
+
+.today { outline:2px solid red; }
+
+</style>
+</head>
+
+<body>
+
+<h3>📱 生活系统</h3>
+
+<div class="card">
+  <button class="work" onclick="setType('work')">工作</button>
+  <button class="fun" onclick="setType('fun')">娱乐</button>
+  <button class="sleep" onclick="setType('sleep')">睡觉</button>
+
+  <br>
+  <button onclick="add()">➕添加</button>
+  <button onclick="toggleView()">📅月视图</button>
+</div>
+
+<div class="card">
+  <canvas id="chart"></canvas>
+</div>
+
+<div class="card" id="analysis"></div>
+
+<div id="container"></div>
+
+<script>
+let data=JSON.parse(localStorage.getItem("timelineData")||"{}");
+
+let today=new Date();
+let todayKey=today.toISOString().slice(0,10);
+
+let type="work";
+let showMonth=false;
+
+function setType(t){ type=t; }
+
+function add(){
+  let s=parseInt(prompt("开始时间"));
+  let e=parseInt(prompt("结束时间"));
+
+  if(!data[todayKey]) data[todayKey]=Array(24).fill("");
+
+  for(let i=s;i<e;i++){
+    data[todayKey][i]=type;
+  }
+
+  save();render();
+}
+
+function toggleView(){
+  showMonth=!showMonth;
+  render();
+}
+
+function save(){
+  localStorage.setItem("timelineData",JSON.stringify(data));
+  updateChart();
+  analyze();
+}
+
+function render(){
+  container.innerHTML="";
+  let days=showMonth?30:1;
+
+  for(let i=0;i<days;i++){
+    let d=new Date();
+    d.setDate(today.getDate()+i);
+
+    let key=d.toISOString().slice(0,10);
+    let label=(d.getMonth()+1)+"月"+d.getDate()+"日";
+
+    if(!data[key]) data[key]=Array(24).fill("");
+
+    let div=document.createElement("div");
+    div.className="card";
+
+    if(key===todayKey) div.classList.add("today");
+
+    let title=document.createElement("div");
+    title.innerText=label;
+
+    let bar=document.createElement("div");
+    bar.className="bar";
+
+    data[key].forEach(v=>{
+      let c=document.createElement("div");
+      c.className="cell "+v;
+      bar.appendChild(c);
+    });
+
+    div.appendChild(title);
+    div.appendChild(bar);
+    container.appendChild(div);
+  }
+}
+
+function updateChart(){
+  let s={work:0,fun:0,sleep:0};
+
+  Object.values(data).forEach(d=>{
+    d.forEach(h=>{
+      if(s[h]!=undefined) s[h]++;
+    });
+  });
+
+  chart.data.datasets[0].data=[s.work,s.fun,s.sleep];
+  chart.update();
+}
+
+function analyze(){
+  let d=data[todayKey]||[];
+  let s={work:0,fun:0,sleep:0};
+
+  d.forEach(h=>{
+    if(s[h]!=undefined) s[h]++;
+  });
+
+  let text="";
+
+  if(d.length===0){
+    text="⚠️ 今天还没记录";
+  }else{
+    if(s.sleep<6) text+="😴 睡太少 ";
+    if(s.work<4) text+="🟡 有点摆 ";
+    if(s.fun>8) text+="🎮 娱乐过多 ";
+    if(!text) text="✅ 节奏不错";
+  }
+
+  analysis.innerText=text;
+}
+
+let chart=new Chart(document.getElementById("chart"),{
+  type:"doughnut",
+  data:{
+    labels:["工作","娱乐","睡觉"],
+    datasets:[{
+      data:[0,0,0],
+      backgroundColor:["#4CAF50","#2196F3","#9C27B0"]
+    }]
+  },
+  options:{ maintainAspectRatio:false }
+});
+
+render();
+updateChart();
+analyze();
+</script>
+
+</body>
+</html>
